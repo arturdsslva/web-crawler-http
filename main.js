@@ -1,6 +1,6 @@
 const { crawl } = require("./crawl.js");
 
-function main() {
+async function main() {
   if (process.argv.length < 3) {
     console.log("no URL provided");
     process.exit(1);
@@ -14,7 +14,11 @@ function main() {
   const url = process.argv[2];
 
   console.log("webcrawling started - " + url);
-  crawl(url);
+  const pages = await crawl(url, url, {});
+
+  for (const page of Object.entries(pages)) {
+    console.log(page);
+  }
 }
 
 main();

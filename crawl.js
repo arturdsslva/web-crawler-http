@@ -1,6 +1,20 @@
 const { JSDOM } = require("jsdom");
 
-async function crawl(currentUrl) {
+async function crawl(baseUrl, currentUrl, pages) {
+  const baseUrlObj = new URL(baseUrl);
+  const currentUrlObj = new URL(currentUrl);
+
+  if (baseUrlObj.hostname !== currentUrlObj.hostname) return pages;
+
+  const normalizedCurrentUrl = normalizeUrl(currentUrl);
+
+  if (pages[normalizedCurrentUrl] > 0) {
+    pages[normalizedCurrentUrl]++;
+    return pages;
+  }
+
+  pages[normalizedCurrentUrl] = 1;
+
   console.log("crawling => " + currentUrl);
 
   try {
@@ -10,7 +24,7 @@ async function crawl(currentUrl) {
       console.log(
         `error in fetch with status code: ${resp.status}\non page: ${currentUrl}`
       );
-      return;
+      return pages;
     }
 
     const contentType = resp.headers.get("content-type");
@@ -19,13 +33,20 @@ async function crawl(currentUrl) {
       console.log(
         `non html response, content type: ${contentType}\non page: ${currentUrl}`
       );
-      return;
+      return pages;
     }
 
-    console.log(await resp.text());
+    const htmlBody = await resp.text();
+
+    const nextUrls = getUrlsFromHtml(htmlBody, baseUrl);
+
+    for (const nextUrl of nextUrls) {
+      pages = await crawl(baseUrl, nextUrl, pages);
+    }
   } catch (err) {
     console.log(`error in fetch: ${err.message}\non page: ${currentUrl}`);
   }
+  return pages;
 }
 
 function normalizeUrl(url) {
@@ -48,6 +69,8 @@ function getUrlsFromHtml(htmlBody, baseUrl) {
         const urlObj = new URL(`${baseUrl}${linkElement.href}`);
         urls.push(urlObj.href);
       } catch (error) {
+        console.log(`AQUI => ${baseUrl}${linkElement.href}`);
+
         console.log(`error with relative url: ${error.message}`);
       }
     } else {
@@ -55,6 +78,8 @@ function getUrlsFromHtml(htmlBody, baseUrl) {
         const urlObj = new URL(linkElement.href);
         urls.push(urlObj.href);
       } catch (error) {
+        console.log(`AQUI => ${linkElement.href}`);
+
         console.log(`error with absolute url: ${error.message}`);
       }
     }
